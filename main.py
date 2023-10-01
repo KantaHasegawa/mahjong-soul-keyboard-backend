@@ -16,15 +16,12 @@ def count_pai():
 
     # # バイナリデータから画像を読み込む
     origin_image = cv2.imdecode(np.frombuffer(decoded_data, dtype=np.uint8), cv2.IMREAD_COLOR)
-    cv2.imwrite("origin.jpg", origin_image)
 
     # 画像をグレースケールに変換
     origin_gray = cv2.cvtColor(origin_image, cv2.COLOR_BGR2GRAY)
-    cv2.imwrite("origin_gray.jpg", origin_gray)
 
     # 画像を2値化
     _, thresh = cv2.threshold(origin_gray, 100, 255, cv2.THRESH_BINARY)
-    cv2.imwrite("origin_binary.jpg", thresh)
 
     # 最初に見つかった白いピクセルのy座標を取得(上から下に向かって探索)
     y_index = np.where(thresh == 255)[0]
@@ -34,7 +31,6 @@ def count_pai():
     y_position_reverse = y_index_reverse[0]
     # 背景画像をトリミングして除去
     cropped_image = origin_image[y_position:y_position_reverse]
-    cv2.imwrite("cropped.jpg", cropped_image)
 
     # トリミングした画像の高さと幅を取得
     height, width = cropped_image.shape[:2]
@@ -48,12 +44,10 @@ def count_pai():
     
     # 麻雀の牌以外の部分をトリミングして除去
     roi = cropped_image[trim_height:, trim_width:trim_width_right]
-    cv2.imwrite("roi.jpg", roi)
     # 画像をグレースケールに変換
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     # 画像を2値化
     _, threshed_pai = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-    cv2.imwrite("threshed_pai.jpg", threshed_pai)
     # 牌の輪郭を検出
     contours, _ = cv2.findContours(threshed_pai, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     # 輪郭の中で最も右側のX座標を取得する
