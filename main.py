@@ -2,6 +2,7 @@ from flask import Flask, request
 import numpy as np
 import cv2
 import base64
+import math
 
 app = Flask(__name__)
 
@@ -36,8 +37,8 @@ def count_pai():
     height, width = cropped_image.shape[:2]
     # トリミング比率の計算
     upper_ratio = 0.83
-    left_ratio = 0.11
-    right_ratio = 0.16
+    left_ratio = 0.45
+    right_ratio = 0.05
     trim_width = int(width * left_ratio)
     trim_height = int(height * upper_ratio)
     trim_width_right = width - int(width * right_ratio)
@@ -48,37 +49,48 @@ def count_pai():
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     # 画像を2値化
     _, threshed_pai = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-    # 牌の輪郭を検出
-    contours, _ = cv2.findContours(threshed_pai, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # 輪郭の中で最も右側のX座標を取得する
-    x_rightmosts = []
-    for cnt in contours:
-        rightmost_point = tuple(cnt[cnt[:,:,0].argmax()][0])
-        x_rightmosts.append(rightmost_point[0])
 
-    # ソートして、輪郭のx座標を昇順に並べる
-    x_coords_sorted = sorted(x_rightmosts)
-    # 輪郭が一定の間隔以上離れているものを探す
-    gap_threshold = 300
-    cut_x = None
+    # 画像をぼかす
+    kernel = np.ones((5,5),np.uint8)
+    dilation = cv2.dilate(threshed_pai, kernel, iterations = 10)
 
-    for i in range(1, len(x_coords_sorted)):
-        if x_coords_sorted[i] - x_coords_sorted[i-1] > gap_threshold:
-            cut_x = x_coords_sorted[i - 1]
+    # 輪郭を検出
+    contours, _ = cv2.findContours(dilation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # 画像の幅を取得
+    image_width = dilation.shape[1]
+    # 鳴いた牌が存在するか判定するための距離を取得
+    right_ratio = 0.03
+    distance_from_right = int(image_width * right_ratio)
+
+    # 鳴いた牌の輪郭を見つける
+    target_contour = None
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        if x + w >= image_width - distance_from_right:
+            target_contour = contour
             break
-    # もし間隔が一定以上開いている輪郭が見つかれば、その位置でトリミング
-    # 鳴いた牌を除去するため
-    if cut_x:
-        threshed_pai = threshed_pai[:, :cut_x]
-    
-    # 牌の輪郭を検出
-    trimmed_called_pai_contours, _ = cv2.findContours(threshed_pai, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    # 牌の輪郭の数をカウント
-    pai_count = len(trimmed_called_pai_contours)
+    # 鳴いた牌が見つかった場合の処理
+    if target_contour is not None:
+        x, y, width, height = cv2.boundingRect(target_contour)
+        call1_width = math.floor(image_width / 2.47)
+        call2_width = math.floor(image_width / 1.57)
+        call3_width = math.floor(image_width / 1.15)
+
+        # 横幅に基づいて処理を分岐
+        if width < call1_width:
+            result = 1
+        elif call1_width <= width < call2_width:
+            result = 2
+        elif call2_width <= width < call3_width:
+            result = 3
+        else:
+            result = 4
+    else:
+        result = 0
 
     # 牌の数を返す
-    return {"count": pai_count}
+    return {"count": result}
 
 if __name__ == "__main__":
     app.run(port="8090", debug=True)
