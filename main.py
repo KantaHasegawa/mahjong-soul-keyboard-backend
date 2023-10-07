@@ -1,10 +1,12 @@
 from flask import Flask, request
+from flask_cors import CORS
 import numpy as np
 import cv2
 import base64
 import math
 
 app = Flask(__name__)
+CORS(app)
 
 @app.route('/', methods=['POST'])
 def count_pai():
